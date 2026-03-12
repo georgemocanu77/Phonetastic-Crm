@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Phonetastic CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold: #9A6E00; --gold-light: #B8860B; --bg: #FFFFFF; --bg2: #F5F5F3;
+    --bg3: #FAFAF8; --border: #E0DDD8; --border2: #D4D0C8; --text: #1A1A1A;
+    --muted: #888; --muted2: #AAA; --danger: #C0392B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Source Sans 3', sans-serif; min-height: 100vh; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #f0f0f0; } ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
+
+  #header { border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; background: var(--bg); z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 10px var(--gold); }
+  .logo-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .logo-sub { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #999; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  #sync-status { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); font-family: 'Source Sans 3', sans-serif; padding: 6px 14px; border: 1px solid var(--border); }
+  #sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #CCC; transition: background 0.3s; flex-shrink: 0; }
+  #sync-dot.syncing { background: #E67E22; animation: pulse 1s infinite; }
+  #sync-dot.synced  { background: #27AE60; }
+  #sync-dot.error   { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #statsbar { display: flex; border-bottom: 1px solid var(--border); }
+  .stat { padding: 12px 28px; border-right: 1px solid var(--border); }
+  .stat-val { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--gold); line-height: 1; }
+  .stat-lbl { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted2); margin-top: 3px; }
+
+  #main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  .btn-gold { background: var(--gold); color: #fff; border: none; cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; padding: 10px 20px; transition: background 0.2s; }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-ghost { background: transparent; color: #888; border: 1px solid var(--border2); cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 20px; transition: all 0.2s; }
+  .btn-ghost:hover { border-color: #666; color: var(--text); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); cursor: pointer; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 9px 18px; font-family: 'Source Sans 3', sans-serif; transition: all 0.2s; }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+
+  input, select, textarea { background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 10px 14px; font-size: 14px; font-family: 'Source Sans 3', sans-serif; width: 100%; outline: none; transition: border-color 0.2s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  select option { background: #fff; }
+  label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 5px; }
+  textarea { resize: vertical; }
+
+  #filters { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+  #filters input { flex: 1; min-width: 220px; }
+  #filters select { width: 160px; }
+
+  .table-header { display: grid; grid-template-columns: 40px 1.2fr 1fr 110px 130px 110px 32px; gap: 0 16px; padding: 8px 20px; margin-bottom: 6px; }
+  .th { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted2); }
+
+  .contact-row { display: grid; grid-template-columns: 40px 1.2fr 1fr 110px 130px 110px 32px; gap: 0 16px; padding: 14px 20px; align-items: center; background: var(--bg3); border: 1px solid var(--border); cursor: pointer; transition: border-color 0.2s, transform 0.15s; margin-bottom: 3px; }
+  .contact-row:hover { border-color: var(--gold); transform: translateY(-1px); box-shadow: 0 2px 12px rgba(154,110,0,0.08); }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .contact-name { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--text); }
+  .contact-company { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .contact-brands { font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-country { font-size: 12px; color: #888; }
+  .tag { display: inline-block; background: #F0EDE8; border: 1px solid #DDD9D2; color: #666; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; font-family: 'Source Sans 3', sans-serif; }
+  .tag-gold { border-color: rgba(154,110,0,0.35); color: var(--gold); background: rgba(154,110,0,0.07); }
+  .row-arrow { font-size: 16px; color: #CCC; text-align: center; }
+
+  #empty { text-align: center; padding: 60px 0; }
+  #empty .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  #empty h3 { font-family: 'Playfair Display', serif; font-size: 18px; color: #BBB; }
+  #empty p { font-size: 12px; color: #CCC; margin-top: 6px; }
+
+  #loading-screen { position: fixed; inset: 0; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 16px; }
+  .loading-logo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .loading-bar { width: 200px; height: 2px; background: var(--border); overflow: hidden; }
+  .loading-bar-inner { height: 100%; background: var(--gold); animation: loadbar 1.5s ease-in-out infinite; }
+  @keyframes loadbar { 0%{width:0;margin-left:0} 50%{width:100%;margin-left:0} 100%{width:0;margin-left:100%} }
+  .loading-text { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted2); }
+
+  #detail-view { display: none; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 290px; gap: 28px; }
+  .detail-avatar { width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .detail-name { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; }
+  .detail-company { color: var(--gold); font-size: 14px; margin-top: 3px; }
+  .detail-tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border2), transparent); margin: 22px 0; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .field-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  .field-val { font-size: 14px; color: #999; margin-top: 3px; }
+  .field-link { color: var(--gold); text-decoration: none; font-size: 14px; }
+  .field-link:hover { text-decoration: underline; }
+  .action-panel { background: var(--bg2); border: 1px solid var(--border); border-left: 2px solid var(--gold); padding: 20px; }
+  .action-panel-title { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted2); margin-bottom: 14px; }
+  .action-btns { display: flex; flex-direction: column; gap: 8px; }
+  .action-btns a { display: block; }
+  .action-btns button { width: 100%; }
+
+  #form-view { display: none; }
+  .form-title { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 28px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .form-full { grid-column: 1 / -1; }
+  .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+  #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: center; justify-content: center; }
+  #modal-overlay.active { display: flex; }
+  .modal { background: #fff; border: 1px solid var(--border); padding: 32px; min-width: 340px; box-shadow: 0 8px 40px rgba(0,0,0,0.12); }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 10px; }
+  .modal p { font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  #toast { position: fixed; bottom: 28px; right: 28px; padding: 12px 22px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; z-index: 9999; display: none; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .back-btn { margin-bottom: 24px; display: inline-block; }
+
+  @media(max-width: 768px) {
+    .table-header, .contact-row { grid-template-columns: 36px 1fr 80px 32px; }
+    .hide-mobile { display: none; }
+    .detail-grid, .form-grid { grid-template-columns: 1fr; }
+    .form-full { grid-column: 1; }
+    #header { padding: 0 16px; }
+    #main { padding: 20px 16px; }
+    #sync-status { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-logo">Phonetastic CRM</div>
+  <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  <div class="loading-text">Connecting to Google Sheets…</div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <span class="logo-name">Phonetastic</span>
+    <span style="color:#DDD;font-size:20px;margin:0 4px;">·</span>
+    <span class="logo-sub">CRM</span>
+  </div>
+  <div class="header-actions">
+    <div id="sync-status"><div id="sync-dot"></div><span id="sync-label">Connecting…</span></div>
+    <button class="btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn-gold" onclick="openAdd()">+ New Contact</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="statsbar">
+  <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total Contacts</div></div>
+  <div class="stat"><div class="stat-val" id="stat-countries">0</div><div class="stat-lbl">Countries</div></div>
+  <div class="stat"><div class="stat-val" id="stat-wholesalers">0</div><div class="stat-lbl">Wholesalers</div></div>
+  <div class="stat"><div class="stat-val" id="stat-distributors">0</div><div class="stat-lbl">Distributors</div></div>
+</div>
+
+<div id="main">
+
+  <!-- LIST -->
+  <div id="list-view">
+    <div id="filters">
+      <input type="text" id="search-input" placeholder="Search contacts, brands, countries…" oninput="renderList()"/>
+      <select id="filter-profile" onchange="renderList()">
+        <option value="All">All Profiles</option>
+        <option>Wholesaler</option><option>Distributor</option><option>Retailer</option>
+        <option>Broker</option><option>Agent</option><option>Other</option>
+      </select>
+      <select id="filter-category" onchange="renderList()">
+        <option value="All">All Categories</option>
+        <option>SDA</option><option>Smartphones</option><option>Consumer Electronics</option>
+        <option>Accessories</option><option>B2B</option><option>VIP</option>
+      </select>
+    </div>
+    <div class="table-header">
+      <div class="th"></div><div class="th">Name / Company</div>
+      <div class="th hide-mobile">Brands</div><div class="th hide-mobile">Country</div>
+      <div class="th hide-mobile">Profile</div><div class="th hide-mobile">Category</div>
+      <div class="th"></div>
+    </div>
+    <div id="contact-list"></div>
+    <div id="empty" style="display:none">
+      <div class="empty-icon">◇</div>
+      <h3>No contacts found</h3>
+      <p>Try adjusting your filters or add a new contact</p>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="detail-view">
+    <button class="btn-ghost back-btn" onclick="showView('list')">← Back to list</button>
+    <div class="detail-grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:20px;">
+          <div class="detail-avatar" id="detail-avatar"></div>
+          <div><div class="detail-name" id="detail-name"></div><div class="detail-company" id="detail-company"></div></div>
+        </div>
+        <div class="detail-tags" id="detail-tags"></div>
+        <div class="divider"></div>
+        <div class="field-grid" id="detail-fields"></div>
+        <div class="divider"></div>
+        <div class="field-label">Notes</div>
+        <div id="detail-notes" style="font-size:14px;line-height:1.7;white-space:pre-wrap;min-height:36px;color:#888;"></div>
+      </div>
+      <div>
+        <div class="action-panel">
+          <div class="action-panel-title">Quick Actions</div>
+          <div class="action-btns" id="detail-actions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div id="form-view">
+    <button class="btn-ghost back-btn" onclick="cancelForm()">← Cancel</button>
+    <div class="form-title" id="form-title">New Contact</div>
+    <div class="form-grid">
+      <div><label>First Name *</label><input id="f-name" placeholder="e.g. Marco"/></div>
+      <div><label>Company *</label><input id="f-company" placeholder="e.g. TechTrade GmbH"/></div>
+      <div><label>Country</label><input id="f-country" placeholder="e.g. Germany"/></div>
+      <div><label>Email</label><input id="f-email" type="email" placeholder="contact@company.com"/></div>
+      <div><label>WhatsApp Number</label><input id="f-whatsapp" placeholder="+49 170 000 0000"/></div>
+      <div><label>Microsoft Teams ID</label><input id="f-teams" placeholder="contact@company.com"/></div>
+      <div><label>Profile</label>
+        <select id="f-profile"><option>Wholesaler</option><option>Distributor</option><option>Retailer</option><option>Broker</option><option>Agent</option><option>Other</option></select>
+      </div>
+      <div><label>Category</label>
+        <select id="f-category"><option>SDA</option><option>Smartphones</option><option>Consumer Electronics</option><option>Accessories</option><option>B2B</option><option>VIP</option></select>
+      </div>
+      <div class="form-full"><label>Brands / Product Interests</label><input id="f-brands" placeholder="e.g. Philips / Samsung / Sony"/></div>
+      <div class="form-full"><label>Notes</label><textarea id="f-notes" rows="4" placeholder="Add any relevant notes about this contact…"></textarea></div>
+    </div>
+    <div class="divider"></div>
+    <div class="form-actions">
+      <button class="btn-ghost" onclick="cancelForm()">Cancel</button>
+      <button class="btn-gold" onclick="saveContact()" id="form-save-btn">Add Contact</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- DELETE MODAL -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Delete Contact?</h3>
+    <p>This action cannot be undone. The contact will be permanently removed from your CRM and Google Sheet.</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4XyQB5k0YcR-S9ZbDLxAK9pwQtoQ1FwCT_dVYBjUva8F6qdOZ_2CufnjIHJ-h6SY/exec";
+const LOCAL_KEY  = "phonetastic_crm_v3";
+const COLORS = ["#C0392B","#27AE60","#2980B9","#8E44AD","#E67E22","#16A085","#D35400","#6C3483"];
+const FLAGS  = {Germany:"🇩🇪",Spain:"🇪🇸",Poland:"🇵🇱",Bulgaria:"🇧🇬",France:"🇫🇷",Italy:"🇮🇹",Netherlands:"🇳🇱",Romania:"🇷🇴",UK:"🇬🇧",USA:"🇺🇸",UAE:"🇦🇪",Turkey:"🇹🇷",Greece:"🇬🇷",Portugal:"🇵🇹",Belgium:"🇧🇪",Switzerland:"🇨🇭",Austria:"🇦🇹",Sweden:"🇸🇪",Denmark:"🇩🇰",Norway:"🇳🇴",China:"🇨🇳",Japan:"🇯🇵",India:"🇮🇳",Brazil:"🇧🇷",Mexico:"🇲🇽"};
+const INITIAL = [
+  {id:1,name:"Peter",company:"Etree",country:"Germany",profile:"Wholesaler",category:"SDA",email:"pv@etree.de",brands:"Philips / Starlink / SDA",whatsapp:"+48 785 002 705",teamsId:"",notes:"",createdAt:"2024-01-01"},
+  {id:2,name:"Kumari",company:"Electro Shiva",country:"Spain",profile:"Wholesaler",category:"SDA",email:"kumari@electroshiva.com",brands:"Philips Personal Care / Oral B",whatsapp:"+971 55 515 0997",teamsId:"",notes:"",createdAt:"2024-01-01"},
+  {id:3,name:"Grzegorz",company:"ElectroTrading PL",country:"Poland",profile:"Wholesaler",category:"SDA",email:"grzegorz@electrotrading.com",brands:"Philips / Group Seb",whatsapp:"+48 798 426 361",teamsId:"grzegorz@electrotrading.com",notes:"",createdAt:"2024-01-01"},
+  {id:4,name:"Adrian",company:"Alltron AG",country:"Germany",profile:"Wholesaler",category:"SDA",email:"adrian.meier@alltron.ch",brands:"Philips Personal Care / Oral B",whatsapp:"+41 76 317 71 85",teamsId:"",notes:"",createdAt:"2024-01-01"},
+  {id:5,name:"David",company:"Alleop",country:"Bulgaria",profile:"Distributor",category:"SDA",email:"david@alleop.bg",brands:"Philips",whatsapp:"+359 88 608 6657",teamsId:"",notes:"",createdAt:"2024-01-01"},
+];
+
+let contacts = [], editingId = null, deleteTargetId = null;
+
+// ── SYNC ──────────────────────────────────────────────────────────────────────
+function setSyncStatus(state, label) {
+  const dot = document.getElementById("sync-dot");
+  dot.className = state;
+  document.getElementById("sync-label").textContent = label;
+}
+
+async function sheetPost(payload) {
+  const res = await fetch(SCRIPT_URL, { method:"POST", body: JSON.stringify(payload) });
+  return res.json();
+}
+
+async function loadFromSheet() {
+  setSyncStatus("syncing","Loading from Google Sheets…");
+  try {
+    await sheetPost({ action:"init" });
+    const data = await sheetPost({ action:"load" });
+    if (data.status === "ok") {
+      if (data.contacts && data.contacts.length > 0) {
+        contacts = data.contacts.map(c => ({ ...c, id: Number(c.id) || Date.now() }));
+        saveLocal();
+      } else {
+        contacts = [...INITIAL];
+        await pushToSheet();
+      }
+      setSyncStatus("synced","Synced · Google Sheets ✓");
+    } else throw new Error();
+  } catch(e) {
+    const local = localStorage.getItem(LOCAL_KEY);
+    contacts = local ? JSON.parse(local) : [...INITIAL];
+    setSyncStatus("error","Offline — local data only");
+    showToast("Cannot reach Google Sheets. Using local data.","error");
+  }
+  updateStats(); renderList();
+  document.getElementById("loading-screen").style.display = "none";
+  showView("list");
+}
+
+async function pushToSheet() {
+  setSyncStatus("syncing","Saving…");
+  try {
+    const data = await sheetPost({ action:"save", contacts });
+    if (data.status === "ok") {
+      setSyncStatus("synced","Saved to Google Sheets ✓");
+      setTimeout(() => setSyncStatus("synced","Synced · Google Sheets ✓"), 2500);
+    } else throw new Error();
+  } catch(e) {
+    setSyncStatus("error","Sync failed — saved locally");
+    showToast("Could not sync to Google Sheets. Saved locally.","error");
+  }
+}
+
+function saveLocal() { localStorage.setItem(LOCAL_KEY, JSON.stringify(contacts)); }
+async function save() { saveLocal(); await pushToSheet(); updateStats(); }
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function avatarColor(n) { let h=0; for(let c of (n||"?")) h=(h*31+c.charCodeAt(0))&0xffffffff; return COLORS[Math.abs(h)%COLORS.length]; }
+function initials(n) { return (n||"?").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2); }
+function flag(c)  { return FLAGS[c]||"🌍"; }
+function esc(s)   { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function updateStats() {
+  document.getElementById("stat-total").textContent        = contacts.length;
+  document.getElementById("stat-countries").textContent    = new Set(contacts.map(c=>c.country).filter(Boolean)).size;
+  document.getElementById("stat-wholesalers").textContent  = contacts.filter(c=>c.profile==="Wholesaler").length;
+  document.getElementById("stat-distributors").textContent = contacts.filter(c=>c.profile==="Distributor").length;
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────────
+function showView(v) {
+  ["list","detail","form"].forEach(n => document.getElementById(n+"-view").style.display = "none");
+  document.getElementById(v+"-view").style.display = "block";
+  if (v==="list") renderList();
+}
+
+function renderList() {
+  const q=document.getElementById("search-input").value.toLowerCase();
+  const fp=document.getElementById("filter-profile").value;
+  const fc=document.getElementById("filter-category").value;
+  const filtered = contacts.filter(c => {
+    const mq=!q||[c.name,c.company,c.country,c.email,c.brands,c.profile].some(f=>(f||"").toLowerCase().includes(q));
+    return mq && (fp==="All"||c.profile===fp) && (fc==="All"||c.category===fc);
+  });
+  const list=document.getElementById("contact-list"), empty=document.getElementById("empty");
+  if (!filtered.length) { list.innerHTML=""; empty.style.display="block"; return; }
+  empty.style.display="none";
+  list.innerHTML = filtered.map(c=>`
+    <div class="contact-row" onclick="openDetail(${c.id})">
+      <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+      <div><div class="contact-name">${esc(c.name)}</div><div class="contact-company">${esc(c.company)}</div></div>
+      <div class="contact-brands hide-mobile">${esc(c.brands||"—")}</div>
+      <div class="contact-country hide-mobile">${flag(c.country)} ${esc(c.country||"")}</div>
+      <div class="hide-mobile"><span class="tag">${esc(c.profile||"")}</span></div>
+      <div class="hide-mobile"><span class="tag ${c.category==="SDA"?"tag-gold":""}">${esc(c.category||"")}</span></div>
+      <div class="row-arrow">›</div>
+    </div>`).join("");
+}
+
+function openDetail(id) {
+  const c=contacts.find(x=>x.id==id); if(!c) return;
+  editingId=c.id;
+  document.getElementById("detail-avatar").style.background=avatarColor(c.name);
+  document.getElementById("detail-avatar").textContent=initials(c.name);
+  document.getElementById("detail-name").textContent=c.name;
+  document.getElementById("detail-company").textContent=c.company;
+  document.getElementById("detail-tags").innerHTML=[
+    `<span class="tag">${esc(c.profile||"")}</span>`,
+    `<span class="tag ${c.category==="SDA"?"tag-gold":""}">${esc(c.category||"")}</span>`,
+    `<span class="tag">${flag(c.country)} ${esc(c.country||"")}</span>`,
+    `<span class="tag" style="color:#aaa">Since ${c.createdAt||""}</span>`
+  ].join("");
+  document.getElementById("detail-fields").innerHTML=[
+    {label:"Email",val:c.email,href:c.email?`mailto:${c.email}`:null},
+    {label:"WhatsApp",val:c.whatsapp,href:c.whatsapp?`https://wa.me/${(c.whatsapp||"").replace(/\D/g,"")}`:null,ext:true},
+    {label:"Microsoft Teams",val:c.teamsId||"—"},
+    {label:"Brands / Interests",val:c.brands||"—"},
+  ].map(f=>`<div><div class="field-label">${f.label}</div>${f.href&&f.val?`<a class="field-link" href="${f.href}" ${f.ext?'target="_blank"':""} onclick="event.stopPropagation()">${esc(f.val)}</a>`:`<div class="field-val">${esc(f.val||"—")}</div>`}</div>`).join("");
+  const n=document.getElementById("detail-notes");
+  n.innerHTML=c.notes?esc(c.notes):'<em style="color:#CCC">No notes yet — edit to add.</em>';
+  const actions=[`<button class="btn-gold" onclick="openEdit(${c.id})">✎ Edit Contact</button>`];
+  if(c.email) actions.push(`<a href="mailto:${esc(c.email)}"><button class="btn-ghost">✉ Send Email</button></a>`);
+  if(c.whatsapp) actions.push(`<a href="https://wa.me/${(c.whatsapp||"").replace(/\D/g,"")}" target="_blank"><button class="btn-ghost">💬 WhatsApp</button></a>`);
+  actions.push(`<button class="btn-danger" style="margin-top:8px" onclick="askDelete(${c.id})">Delete Contact</button>`);
+  document.getElementById("detail-actions").innerHTML=actions.join("");
+  showView("detail");
+}
+
+function openAdd() {
+  editingId=null;
+  document.getElementById("form-title").textContent="New Contact";
+  document.getElementById("form-save-btn").textContent="Add Contact";
+  ["f-name","f-company","f-country","f-email","f-whatsapp","f-teams","f-brands","f-notes"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f-profile").value="Wholesaler";
+  document.getElementById("f-category").value="SDA";
+  showView("form");
+}
+
+function openEdit(id) {
+  const c=contacts.find(x=>x.id==id); if(!c) return;
+  editingId=c.id;
+  document.getElementById("form-title").textContent="Edit Contact";
+  document.getElementById("form-save-btn").textContent="Save Changes";
+  document.getElementById("f-name").value=c.name||"";
+  document.getElementById("f-company").value=c.company||"";
+  document.getElementById("f-country").value=c.country||"";
+  document.getElementById("f-email").value=c.email||"";
+  document.getElementById("f-whatsapp").value=c.whatsapp||"";
+  document.getElementById("f-teams").value=c.teamsId||"";
+  document.getElementById("f-brands").value=c.brands||"";
+  document.getElementById("f-notes").value=c.notes||"";
+  document.getElementById("f-profile").value=c.profile||"Wholesaler";
+  document.getElementById("f-category").value=c.category||"SDA";
+  showView("form");
+}
+
+function cancelForm() { showView(editingId?"detail":"list"); }
+
+async function saveContact() {
+  const name=document.getElementById("f-name").value.trim();
+  const company=document.getElementById("f-company").value.trim();
+  if(!name||!company){ showToast("Name and Company are required.","error"); return; }
+  const data={name,company,
+    country:document.getElementById("f-country").value.trim(),
+    email:document.getElementById("f-email").value.trim(),
+    whatsapp:document.getElementById("f-whatsapp").value.trim(),
+    teamsId:document.getElementById("f-teams").value.trim(),
+    brands:document.getElementById("f-brands").value.trim(),
+    notes:document.getElementById("f-notes").value.trim(),
+    profile:document.getElementById("f-profile").value,
+    category:document.getElementById("f-category").value,
+  };
+  if(editingId){
+    contacts=contacts.map(c=>c.id==editingId?{...c,...data}:c);
+    showToast("Contact updated & synced ✓");
+    await save(); openDetail(editingId);
+  } else {
+    contacts.push({...data,id:Date.now(),createdAt:new Date().toISOString().split("T")[0]});
+    showToast("Contact added & synced to Google Sheets ✓");
+    await save(); showView("list");
+  }
+}
+
+function askDelete(id){ deleteTargetId=id; document.getElementById("modal-overlay").classList.add("active"); }
+function closeModal(){ document.getElementById("modal-overlay").classList.remove("active"); deleteTargetId=null; }
+async function confirmDelete(){
+  contacts=contacts.filter(c=>c.id!=deleteTargetId);
+  closeModal(); showToast("Contact deleted.","info");
+  await save(); showView("list");
+}
+
+function exportCSV(){
+  const h=["Name","Company","Country","Profile","Category","Email","Brands","WhatsApp","Teams ID","Notes","Added"];
+  const rows=contacts.map(c=>[c.name,c.company,c.country,c.profile,c.category,c.email,c.brands,c.whatsapp,c.teamsId,c.notes,c.createdAt].map(v=>`"${(v||"").replace(/"/g,'""')}"`).join(","));
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent([h.join(","),...rows].join("\n"));
+  a.download="phonetastic_crm.csv"; a.click();
+  showToast("Exported to CSV!");
+}
+
+let toastTimer;
+function showToast(msg,type="success"){
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  t.style.background=type==="error"?"#C0392B":type==="info"?"#f5f5f3":"#9A6E00";
+  t.style.color=type==="info"?"#888":"#fff";
+  t.style.border=type==="info"?"1px solid #ddd":"none";
+  t.style.display="block";
+  t.style.animation="none"; void t.offsetWidth; t.style.animation="slideIn 0.3s ease";
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.style.display="none",3200);
+}
+
+// INIT
+loadFromSheet();
+</script>
+</body>
+</html>
